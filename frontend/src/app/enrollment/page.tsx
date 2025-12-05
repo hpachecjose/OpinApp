@@ -1,23 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "../../store/store";
+import authService from "../../services/auth.service";
 
 export default function RegisterPage() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const router = useRouter();
+  const setAuth = useAuthStore((state) => state.setAuth);
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
     company: "",
-    plan: "free",
   });
 
-  const navigationItems = [{ href: "/", label: "Voltar à página inicial" }];
-
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -25,50 +27,63 @@ export default function RegisterPage() {
       ...prev,
       [name]: value,
     }));
+    // Limpar erro do campo específico
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+    setError("");
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name || formData.name.length < 2) {
+      newErrors.name = "Nome deve ter pelo menos 2 caracteres";
+    }
+
+    if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Email inválido";
+    }
+
+    if (!formData.password || formData.password.length < 6) {
+      newErrors.password = "Senha deve ter no mínimo 6 caracteres";
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = "As senhas não coincidem";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Aqui você implementaria a lógica de cadastro
-    console.log("Dados do formulário:", formData);
-  };
 
-  const plans = [
-    {
-      id: "free",
-      name: "Plano Grátis",
-      price: "R$ 0",
-      period: "/mês",
-      features: [
-        "Até 50 comentários por mês",
-        "Dashboard básico",
-        "1 formulário ativo",
-        "Suporte por email",
-      ],
-      popular: false,
-    },
-    {
-      id: "pro",
-      name: "Plano Pro",
-      price: "R$ 49",
-      period: "/mês",
-      features: [
-        "Comentários ilimitados",
-        "Relatórios completos",
-        "Suporte prioritário",
-        "Formulários ilimitados",
-        "Análises avançadas",
-        "Exportação de dados",
-      ],
-      popular: true,
-    },
-  ];
-  // Este botão aqui que você tem que deixar o estilo dele igual ao do botão de exemplo
-  const getButtonText = () => {
-    if (formData.plan === "free") {
-      return "Começar Grátis";
-    } else {
-      return "Assinar por R$ 49/mês";
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await authService.register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        company: formData.company || undefined,
+      });
+
+      // Armazenar no state global e localStorage
+      setAuth(response.user, response.token);
+
+      // Redirecionar para dashboard ou onboarding
+      router.push("/onboarding");
+    } catch (err: any) {
+      setError(err.message || "Erro ao criar conta");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -78,116 +93,19 @@ export default function RegisterPage() {
       <header className="bg-white/80 backdrop-blur-xl border-b border-white/40 sticky top-0 z-50 shadow-lg">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            {/* Logo */}
-            <a
-              href="/"
-              className="flex items-center focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-              aria-label="OpinApp - Página inicial"
-            >
-                 <div>
-              <div className="flex items-center space-x-3 mb-4">
-                <img src="/opinapp_logo_rb.png" alt="OpinApp Logo" className="logo h-8 sm:h-10 lg:h-50 w-auto" />
-              </div>
-             
-            </div>
-              {/* <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mr-3">
-                <span className="text-white font-bold text-lg">O</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  OpinApp
-                </h1>
-                <p className="text-xs text-gray-500">Customer Feedback</p>
-              </div> */}
+            <a href="/" className="flex items-center">
+              <img
+                src="/opinapp_logo_rb.png"
+                alt="OpinApp Logo"
+                className="h-8 sm:h-10 w-auto"
+              />
             </a>
-
-            {/* Desktop Navigation */}
-            <nav
-              className="hidden lg:flex space-x-8"
-              aria-label="Navegação principal"
+            <a
+              href="/login"
+              className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-all"
             >
-              {navigationItems.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className="text-gray-600 hover:text-gray-900 transition-all duration-200 text-lg font-medium py-2 px-4 rounded-xl hover:bg-white/60 hover:shadow-lg cursor-pointer"
-                >
-                  {item.label}
-                </a>
-              ))}
-            </nav>
-
-            {/* Desktop Auth Buttons */}
-            <div className="hidden lg:flex items-center gap-4">
-               <a href="/login" className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 text-lg cursor-pointer">
-                Login
-              </a>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              className="lg:hidden p-3 rounded-2xl bg-white/60 hover:bg-white/80 transition-all duration-200 shadow-lg cursor-pointer"
-              onClick={toggleMobileMenu}
-              aria-expanded={isMobileMenuOpen}
-              aria-label="Alternar menu mobile"
-              aria-controls="mobile-menu"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d={
-                    isMobileMenuOpen
-                      ? "M6 18L18 6M6 6l12 12"
-                      : "M4 6h16M4 12h16M4 18h16"
-                  }
-                />
-              </svg>
-            </button>
-          </div>
-
-          {/* Mobile Navigation */}
-          <div
-            id="mobile-menu"
-            className={`lg:hidden border-t border-white/40 transition-all duration-300 ease-in-out ${
-              isMobileMenuOpen
-                ? "max-h-96 opacity-100 py-4"
-                : "max-h-0 opacity-0 overflow-hidden"
-            }`}
-          >
-            <nav
-              className="flex flex-col space-y-2"
-              aria-label="Navegação mobile"
-            >
-              {navigationItems.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className="text-gray-600 hover:text-gray-900 transition-all duration-200 text-lg font-medium py-3 px-4 rounded-xl hover:bg-white/60 cursor-pointer"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {item.label}
-                </a>
-              ))}
-
-              {/* Mobile Auth Buttons */}
-              <div className="flex flex-col gap-3 pt-4 border-t border-white/40">
-                <a
-                  href="/login"
-                  className="text-gray-600 hover:text-gray-900 transition-all duration-200 text-lg font-medium py-3 text-center rounded-xl hover:bg-white/60"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Login
-                </a>
-              </div>
-            </nav>
+              Login
+            </a>
           </div>
         </div>
       </header>
@@ -202,11 +120,11 @@ export default function RegisterPage() {
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Junte-se a milhares de empresas que usam o OpinApp para entender
-              melhor seus clientes e tomar decisões baseadas em dados.
+              melhor seus clientes
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
+          <div className="max-w-2xl mx-auto">
             {/* Form Section */}
             <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/60 p-8">
               <div className="text-center mb-8">
@@ -217,12 +135,18 @@ export default function RegisterPage() {
                   Já tem uma conta?{" "}
                   <a
                     href="/login"
-                    className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                    className="text-indigo-600 hover:text-indigo-700 font-medium"
                   >
                     Faça login aqui
                   </a>
                 </p>
               </div>
+
+              {error && (
+                <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
 
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -241,8 +165,12 @@ export default function RegisterPage() {
                       placeholder="Seu nome completo"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 bg-white/60 border border-white/60 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm hover:shadow-lg"
+                      className={`w-full px-4 py-3 bg-white border rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${errors.name ? "border-red-500" : "border-gray-200"
+                        }`}
                     />
+                    {errors.name && (
+                      <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                    )}
                   </div>
 
                   <div>
@@ -259,7 +187,7 @@ export default function RegisterPage() {
                       placeholder="Nome da sua empresa"
                       value={formData.company}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 bg-white/60 border border-white/60 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm hover:shadow-lg"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
@@ -275,13 +203,16 @@ export default function RegisterPage() {
                     id="email"
                     name="email"
                     type="email"
-                    autoComplete="email"
                     required
                     placeholder="seuemail@empresa.com"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white/60 border border-white/60 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm hover:shadow-lg"
+                    className={`w-full px-4 py-3 bg-white border rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${errors.email ? "border-red-500" : "border-gray-200"
+                      }`}
                   />
+                  {errors.email && (
+                    <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                  )}
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -296,13 +227,16 @@ export default function RegisterPage() {
                       id="password"
                       name="password"
                       type="password"
-                      autoComplete="new-password"
                       required
                       placeholder="********"
                       value={formData.password}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 bg-white/60 border border-white/60 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm hover:shadow-lg"
+                      className={`w-full px-4 py-3 bg-white border rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${errors.password ? "border-red-500" : "border-gray-200"
+                        }`}
                     />
+                    {errors.password && (
+                      <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                    )}
                   </div>
 
                   <div>
@@ -316,13 +250,18 @@ export default function RegisterPage() {
                       id="confirmPassword"
                       name="confirmPassword"
                       type="password"
-                      autoComplete="new-password"
                       required
                       placeholder="********"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 bg-white/60 border border-white/60 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm hover:shadow-lg"
+                      className={`w-full px-4 py-3 bg-white border rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${errors.confirmPassword ? "border-red-500" : "border-gray-200"
+                        }`}
                     />
+                    {errors.confirmPassword && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.confirmPassword}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -332,7 +271,7 @@ export default function RegisterPage() {
                     name="terms"
                     type="checkbox"
                     required
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
                   <label
                     htmlFor="terms"
@@ -341,14 +280,14 @@ export default function RegisterPage() {
                     Eu concordo com os{" "}
                     <a
                       href="/terms"
-                      className="text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-indigo-600 hover:text-indigo-700 font-medium"
                     >
                       Termos de Serviço
                     </a>{" "}
                     e{" "}
                     <a
                       href="/privacy"
-                      className="text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-indigo-600 hover:text-indigo-700 font-medium"
                     >
                       Política de Privacidade
                     </a>
@@ -357,250 +296,23 @@ export default function RegisterPage() {
 
                 <button
                   type="submit"
-                  className="w-full bg-primary text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-medium hover:bg-primary-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 text-base sm:text-lg cursor-pointer"
+                  disabled={loading}
+                  className="w-full bg-indigo-600 text-white px-6 py-4 rounded-lg font-medium hover:bg-indigo-700 hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-lg"
                 >
-                  {getButtonText()}
+                  {loading ? "Criando conta..." : "Começar Grátis"}
                 </button>
               </form>
-            </div>
-
-            {/* Plans Section */}
-            <div className="space-y-6">
-              <div className="text-center">
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                  Escolha seu plano
-                </h3>
-                <p className="text-gray-600">
-                  Comece gratuitamente e faça upgrade quando precisar
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {plans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`bg-white/80 backdrop-blur-lg rounded-3xl border-2 p-6 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
-                      formData.plan === plan.id
-                        ? "border-blue-500 shadow-xl"
-                        : plan.popular
-                          ? "border-purple-500 shadow-lg"
-                          : "border-white/60 shadow-lg"
-                    }`}
-                    onClick={() =>
-                      setFormData((prev) => ({ ...prev, plan: plan.id }))
-                    }
-                  >
-                    {plan.popular && (
-                      <div className="inline-flex items-center px-7 py-3 rounded-full text-xs font-bold bg-[#3ca2f5] text-white mb-4 transition-all duration-300 hover:bg-[#1e90ff] hover:scale-105 cursor-pointer">
-                        Mais Popular
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h4 className="text-xl font-bold text-gray-800">
-                          {plan.name}
-                        </h4>
-                        <div className="flex items-baseline mt-2">
-                          <span className="text-3xl font-bold text-gray-900">
-                            {plan.price}
-                          </span>
-                          <span className="text-gray-600 ml-1">
-                            {plan.period}
-                          </span>
-                        </div>
-                      </div>
-                      <div
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                          formData.plan === plan.id
-                            ? "border-blue-500 bg-blue-500"
-                            : "border-gray-300"
-                        }`}
-                      >
-                        {formData.plan === plan.id && (
-                          <div className="w-2 h-2 rounded-full bg-white"></div>
-                        )}
-                      </div>
-                    </div>
-
-                    <ul className="space-y-3">
-                      {plan.features.map((feature, index) => (
-                        <li
-                          key={index}
-                          className="flex items-center text-sm text-gray-700"
-                        >
-                          <span className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                            <svg
-                              className="w-3 h-3 text-green-600"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </span>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-
-                    {/* Aviso especial para o plano gratuito */}
-                    {plan.id === "free" && (
-                      <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-                        <p className="text-xs text-yellow-800 text-center">
-                          <strong>Atenção:</strong> Após 50 comentários, upgrade
-                          obrigatório para continuar usando
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Benefits Section */}
-              <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-lg rounded-3xl p-6 border border-blue-200/40">
-                <h4 className="font-bold text-gray-800 mb-4 flex items-center">
-                  <span className="text-2xl mr-2"></span> O que você ganha:
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-green-600 text-lg">✓</span>
-                    <span>Dashboard em tempo real</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-green-600 text-lg">✓</span>
-                    <span>Análises de sentimentos com IA</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-green-600 text-lg">✓</span>
-                    <span>Formulários personalizáveis</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-green-600 text-lg">✓</span>
-                    <span>Relatórios automáticos</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Trust Indicators */}
-              <div className="text-center">
-                <div className="flex flex-col sm:flex-row justify-center items-center gap-6 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-600 text-lg">🔒</span>
-                    <span>Segurança SSL</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-600 text-lg">💳</span>
-                    <span>Pagamento seguro</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-600 text-lg">↩️</span>
-                    <span>Cancelamento fácil</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 mt-16">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div>
-                <div className="flex items-center space-x-3 mb-4">
-                  <img
-                    src="/opinapp_logo_rb.png"
-                    alt="OpinApp Logo"
-                    className="logo h-8 sm:h-10 lg:h-50 w-auto"
-                  />
-                </div>
-                <p className="text-gray-400 text-sm sm:text-base">
-                  Sua plataforma de coleta de feedbacks
-                </p>
-              </div>
-              {/* <div className="flex items-center mb-4">
-                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mr-3">
-                                    <span className="text-white font-bold">O</span>
-                                </div>
-                                <span className="text-xl font-bold">OpinApp</span>
-                            </div> */}
-              <p className="text-gray-400 text-sm">
-                Sua plataforma de coleta de feedbacks
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-4">Produto</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>
-                  <a
-                    href="/resources"
-                    className="hover:text-white transition-colors"
-                  >
-                    Recursos
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/#precos"
-                    className="hover:text-white transition-colors"
-                  >
-                    Preços
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-4">Empresa</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>
-                  <a
-                    href="/about"
-                    className="hover:text-white transition-colors"
-                  >
-                    Sobre nós
-                  </a>
-                </li>
-                {/* <li><a href="/blog" className="hover:text-white transition-colors">Blog</a></li> */}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-4">Suporte</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>
-                  <a
-                    href="/help"
-                    className="hover:text-white transition-colors"
-                  >
-                    Central de Ajuda
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/contact"
-                    className="hover:text-white transition-colors"
-                  >
-                    Contato
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400 text-sm">
-            <p>
-              © {new Date().getFullYear()} OpinApp. Todos os direitos
-              reservados.
-            </p>
-          </div>
+      <footer className="bg-gray-900 text-white py-8 mt-auto">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-gray-400 text-sm">
+            © {new Date().getFullYear()} OpinApp. Todos os direitos reservados.
+          </p>
         </div>
       </footer>
     </div>

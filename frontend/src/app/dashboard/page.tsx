@@ -1,240 +1,247 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-
-// Dados simulados para demonstração
-const mockData = {
-  overview: {
-    totalFeedbacks: 1247,
-    averageOpinStars: 4.2,
-    totalForms: 8,
-    responseRate: 67.8,
-    positivePercentage: 78.5,
-    negativePercentage: 21.5
-  },
-  feedbacks: [
-    {
-      id: 1,
-      customer: 'Ana Silva',
-      email: 'ana.silva@email.com',
-      comment: 'Excelente atendimento! A equipe foi muito prestativa e o produto chegou rapidamente.',
-      opinStars: 5,
-      sentiment: 'positive',
-      date: '2024-01-15',
-      formName: 'Pós-compra',
-      isAnonymous: false
-    },
-    {
-      id: 2,
-      customer: 'Anônimo',
-      email: null,
-      comment: 'O produto é bom, mas a entrega demorou mais que o esperado.',
-      opinStars: 3,
-      sentiment: 'neutral',
-      date: '2024-01-14',
-      formName: 'Feedback Geral',
-      isAnonymous: true
-    },
-    {
-      id: 3,
-      customer: 'Carlos Santos',
-      email: 'carlos@empresa.com',
-      comment: 'Tive problemas com o produto. O suporte foi lento para responder.',
-      opinStars: 2,
-      sentiment: 'negative',
-      date: '2024-01-14',
-      formName: 'Suporte Técnico',
-      isAnonymous: false
-    },
-    {
-      id: 4,
-      customer: 'Maria Costa',
-      email: 'maria.costa@gmail.com',
-      comment: 'Adorei a experiência de compra! Voltarei a comprar com certeza.',
-      opinStars: 5,
-      sentiment: 'positive',
-      date: '2024-01-13',
-      formName: 'Pós-compra',
-      isAnonymous: false
-    },
-    {
-      id: 5,
-      customer: 'Anônimo',
-      email: null,
-      comment: 'Site fácil de navegar, mas poderia ter mais opções de pagamento.',
-      opinStars: 4,
-      sentiment: 'positive',
-      date: '2024-01-13',
-      formName: 'Website',
-      isAnonymous: true
-    }
-  ],
-  chartData: [
-    { month: 'Jul', average: 3.8, count: 156 },
-    { month: 'Ago', average: 4.1, count: 203 },
-    { month: 'Set', average: 4.0, count: 189 },
-    { month: 'Out', average: 4.3, count: 234 },
-    { month: 'Nov', average: 4.2, count: 267 },
-    { month: 'Dez', average: 4.2, count: 198 }
-  ],
-  forms: [
-    { id: 1, name: 'Pós-compra', responses: 456, status: 'active', created: '2023-12-01' },
-    { id: 2, name: 'Feedback Geral', responses: 234, status: 'active', created: '2023-11-15' },
-    { id: 3, name: 'Suporte Técnico', responses: 189, status: 'active', created: '2023-11-01' },
-    { id: 4, name: 'Website', responses: 145, status: 'paused', created: '2023-10-20' }
-  ],
-  aiInsights: {
-    summary: "Nos últimos 30 dias, 78% dos feedbacks foram positivos. Principais elogios: atendimento, qualidade do produto. Principais reclamações: tempo de entrega, suporte técnico.",
-    themes: [
-      { theme: 'Atendimento', count: 234, sentiment: 'positive' },
-      { theme: 'Entrega', count: 167, sentiment: 'mixed' },
-      { theme: 'Qualidade', count: 145, sentiment: 'positive' },
-      { theme: 'Preço', count: 89, sentiment: 'mixed' },
-      { theme: 'Suporte', count: 76, sentiment: 'negative' }
-    ]
-  }
-};
+import { useRouter } from 'next/navigation';
+import { useAuthStore, useFeedbacksStore, useFormsStore } from '../../store/store';
+import feedbacksService from '../../services/feedbacks.service';
+import formsService from '../../services/forms.service';
 
 export default function Dashboard() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const router = useRouter();
+  const { user, isAuthenticated, logout } = useAuthStore();
+  const { feedbacks, stats, setFeedbacks, setStats } = useFeedbacksStore();
+  const { forms, setForms } = useFormsStore();
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
-  const [selectedFeedback, setSelectedFeedback] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, router]);
 
-  const getSentimentColor = (sentiment) => {
-    switch (sentiment) {
-      case 'positive': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'negative': return 'bg-rose-50 text-rose-700 border-rose-200';
-      default: return 'bg-amber-50 text-amber-700 border-amber-200';
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [statsResponse, feedbacksResponse, formsResponse] = await Promise.all([
+        feedbacksService.getStats({ days: 30 }),
+        feedbacksService.getFeedbacks({ limit: 10, sortBy: 'data_envio', sortOrder: 'desc' }),
+        formsService.getForms({ limit: 10 })
+      ]);
+
+      setStats(statsResponse);
+      setFeedbacks(feedbacksResponse.feedbacks || []);
+      setForms(formsResponse.forms || []);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao carregar dados');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const renderStars = (rating) => {
+  const handleLogout = () => {
+    logout();
+    router.push('/login');
+  };
+
+  const getSentimentColor = (opinstars: number) => {
+    if (opinstars >= 4) return 'bg-gradient-to-r from-emerald-500 to-green-600 text-white';
+    if (opinstars === 3) return 'bg-gradient-to-r from-amber-500 to-orange-600 text-white';
+    return 'bg-gradient-to-r from-rose-500 to-red-600 text-white';
+  };
+
+  const renderStars = (rating: number) => {
     return [...Array(5)].map((_, i) => (
-      <span key={i} className={`${i < rating ? 'text-amber-400' : 'text-gray-300'}`}>
+      <span key={i} className={`text-xl ${i < rating ? 'text-amber-400' : 'text-gray-300'}`}>
         ★
       </span>
     ));
   };
 
-  if (isLoading) {
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-sm text-gray-600">Carregando...</p>
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-indigo-200 rounded-full animate-spin"></div>
+            <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin absolute top-0"></div>
+          </div>
+          <p className="text-sm text-gray-600 mt-4 font-medium">Carregando seu dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      {/* Header Premium */}
+      <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-8">
-              <img src="/opinapp_logo_rb.png" alt="OpinApp" className="h-8" />
-              
-              <nav className="hidden md:flex gap-6">
-                <a href="/" className="text-sm text-gray-600 hover:text-gray-900">Início</a>
-                <a href="/dashboard" className="text-sm text-indigo-600 font-medium">Dashboard</a>
-                <a href="/surveys" className="text-sm text-gray-600 hover:text-gray-900">Pesquisas</a>
-                <a href="/analytics" className="text-sm text-gray-600 hover:text-gray-900">Analytics</a>
+              <img src="/opinapp_logo_rb.png" alt="OpinApp" className="h-10" />
+
+              <nav className="hidden md:flex gap-1">
+                <a
+                  href="/dashboard"
+                  className="px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg"
+                >
+                  Dashboard
+                </a>
+                <a
+                  href="/forms"
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+                >
+                  Formulários
+                </a>
               </nav>
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="hidden md:flex items-center gap-3">
-                <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-medium">U</span>
+              <div className="hidden md:flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-white text-sm font-bold">
+                    {user?.nome?.charAt(0).toUpperCase()}
+                  </span>
                 </div>
-                <span className="text-sm text-gray-700">Usuário</span>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{user?.nome}</p>
+                  <p className="text-xs text-indigo-600 font-medium">{user?.plano}</p>
+                </div>
               </div>
 
               <button
-                className="md:hidden text-gray-600"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                </svg>
+                Sair
               </button>
             </div>
           </div>
-
-          {isMobileMenuOpen && (
-            <div className="md:hidden border-t border-gray-200 py-4">
-              <nav className="flex flex-col gap-3">
-                <a href="/" className="text-sm text-gray-600 py-2">Início</a>
-                <a href="/dashboard" className="text-sm text-indigo-600 font-medium py-2">Dashboard</a>
-                <a href="/surveys" className="text-sm text-gray-600 py-2">Pesquisas</a>
-                <a href="/analytics" className="text-sm text-gray-600 py-2">Analytics</a>
-              </nav>
-            </div>
-          )}
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Section */}
+        {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900 mb-1">Dashboard</h1>
-          <p className="text-sm text-gray-600">Visão geral das suas métricas</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+            Olá, {user?.nome?.split(' ')[0]}! 👋
+          </h1>
+          <p className="text-gray-600">Aqui está um resumo das suas métricas dos últimos 30 dias</p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg border border-gray-200 p-5">
-            <p className="text-sm text-gray-600 mb-1">Total de Feedbacks</p>
-            <p className="text-2xl font-semibold text-gray-900">{mockData.overview.totalFeedbacks}</p>
-            <p className="text-xs text-emerald-600 mt-2">+12% esta semana</p>
+        {error && (
+          <div className="mb-6 bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-700 px-6 py-4 rounded-lg shadow-lg">
+            <div className="flex items-center">
+              <span className="text-2xl mr-3">⚠️</span>
+              <span className="font-medium">{error}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Stats Grid - Premium Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Card 1 */}
+          <div className="group relative bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative p-6 text-white">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <span className="text-2xl">📊</span>
+                </div>
+                <span className="text-xs bg-white/20 px-2 py-1 rounded-full backdrop-blur-sm">30d</span>
+              </div>
+              <p className="text-white/80 text-sm mb-1 font-medium">Total de Feedbacks</p>
+              <p className="text-4xl font-bold mb-2">{stats?.totalFeedbacks || 0}</p>
+              <p className="text-xs text-white/60">Respostas coletadas</p>
+            </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-5">
-            <p className="text-sm text-gray-600 mb-1">Média de Avaliação</p>
-            <p className="text-2xl font-semibold text-gray-900">{mockData.overview.averageOpinStars}/5</p>
-            <p className="text-xs text-emerald-600 mt-2">+0.2 esta semana</p>
+          {/* Card 2 */}
+          <div className="group relative bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative p-6 text-white">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <span className="text-2xl">⭐</span>
+                </div>
+                <span className="text-xs bg-white/20 px-2 py-1 rounded-full backdrop-blur-sm">Média</span>
+              </div>
+              <p className="text-white/80 text-sm mb-1 font-medium">Avaliação Média</p>
+              <p className="text-4xl font-bold mb-2">{stats?.averageOpinStars || 0}<span className="text-2xl">/5</span></p>
+              <div className="flex">
+                {renderStars(Math.round(stats?.averageOpinStars || 0))}
+              </div>
+            </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-5">
-            <p className="text-sm text-gray-600 mb-1">Formulários Ativos</p>
-            <p className="text-2xl font-semibold text-gray-900">{mockData.overview.totalForms}</p>
-            <p className="text-xs text-emerald-600 mt-2">+2 novos</p>
+          {/* Card 3 */}
+          <div className="group relative bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative p-6 text-white">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <span className="text-2xl">😊</span>
+                </div>
+                <span className="text-xs bg-white/20 px-2 py-1 rounded-full backdrop-blur-sm">↑</span>
+              </div>
+              <p className="text-white/80 text-sm mb-1 font-medium">Satisfação</p>
+              <p className="text-4xl font-bold mb-2">{stats?.sentimentDistribution?.positivePercentage || 0}%</p>
+              <p className="text-xs text-white/60">
+                {stats?.sentimentDistribution?.positive || 0} feedbacks positivos
+              </p>
+            </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-gray-200 p-5">
-            <p className="text-sm text-gray-600 mb-1">Taxa de Resposta</p>
-            <p className="text-2xl font-semibold text-gray-900">{mockData.overview.responseRate}%</p>
-            <p className="text-xs text-emerald-600 mt-2">+5.3% esta semana</p>
+          {/* Card 4 */}
+          <div className="group relative bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative p-6 text-white">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <span className="text-2xl">📝</span>
+                </div>
+                <span className="text-xs bg-emerald-400 px-2 py-1 rounded-full">
+                  {forms?.filter((f: any) => f.status === 'ACTIVE').length || 0} ativos
+                </span>
+              </div>
+              <p className="text-white/80 text-sm mb-1 font-medium">Formulários</p>
+              <p className="text-4xl font-bold mb-2">{forms?.length || 0}</p>
+              <p className="text-xs text-white/60">Total criados</p>
+            </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg border border-gray-200 mb-6">
-          <div className="flex border-b border-gray-200 overflow-x-auto">
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 mb-6 overflow-hidden">
+          <div className="flex border-b border-gray-200/50 overflow-x-auto">
             {[
-              { id: 'overview', label: 'Visão Geral' },
-              { id: 'feedbacks', label: 'Feedbacks' },
-              { id: 'analytics', label: 'Análises' },
-              { id: 'forms', label: 'Formulários' }
+              { id: 'overview', label: 'Visão Geral', icon: '📊' },
+              { id: 'feedbacks', label: 'Feedbacks', icon: '💬' },
+              { id: 'forms', label: 'Formulários', icon: '📝' }
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-3 text-sm font-medium whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'text-indigo-600 border-b-2 border-indigo-600'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-all ${activeTab === tab.id
+                    ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
               >
+                <span className="mr-2">{tab.icon}</span>
                 {tab.label}
               </button>
             ))}
@@ -242,317 +249,209 @@ export default function Dashboard() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Chart */}
-              <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-base font-semibold text-gray-900 mb-6">Evolução da Avaliação</h3>
-                <div className="h-64 flex items-end justify-between gap-4">
-                  {mockData.chartData.map((item, index) => (
-                    <div key={index} className="flex-1 flex flex-col items-center group">
-                      <div
-                        className="w-full bg-indigo-600 rounded-t transition-all hover:bg-indigo-700"
-                        style={{ height: `${(item.average / 5) * 200}px`, minHeight: '20px' }}
-                      >
-                        <div className="opacity-0 group-hover:opacity-100 -mt-8 text-center">
-                          <span className="text-xs font-medium text-gray-900">{item.average}</span>
-                        </div>
-                      </div>
-                      <div className="mt-3 text-center">
-                        <p className="text-xs font-medium text-gray-900">{item.month}</p>
-                        <p className="text-xs text-gray-500 mt-1">{item.count}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Insights */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-base font-semibold text-gray-900 mb-4">Insights</h3>
-                <div className="bg-indigo-50 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-gray-700 leading-relaxed">{mockData.aiInsights.summary}</p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <div className="text-xl font-semibold text-emerald-700">
-                      {mockData.overview.positivePercentage}%
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">Positivos</div>
-                  </div>
-                  <div className="text-center p-3 bg-rose-50 rounded-lg border border-rose-200">
-                    <div className="text-xl font-semibold text-rose-700">
-                      {mockData.overview.negativePercentage}%
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">Negativos</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {activeTab === 'feedbacks' && (
-          <div className="space-y-6">
-            {/* Filters */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <select className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>Todos os formulários</option>
-                  {mockData.forms.map(form => (
-                    <option key={form.id}>{form.name}</option>
-                  ))}
-                </select>
-                <select className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>Todos os sentimentos</option>
-                  <option>Positivos</option>
-                  <option>Neutros</option>
-                  <option>Negativos</option>
-                </select>
-                <select className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                  <option>Todas as avaliações</option>
-                  {[5,4,3,2,1].map(stars => (
-                    <option key={stars}>{stars} estrela{stars > 1 ? 's' : ''}</option>
-                  ))}
-                </select>
-              </div>
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200/50 bg-gradient-to-r from-indigo-50 to-purple-50">
+              <h2 className="text-xl font-bold text-gray-900">Feedbacks Recentes</h2>
+              <p className="text-sm text-gray-600 mt-1">Últimos feedbacks recebidos</p>
             </div>
 
-            {/* Feedbacks List */}
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Cliente</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Comentário</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Avaliação</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500">Data</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {mockData.feedbacks.map((feedback) => (
-                      <tr key={feedback.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              {feedback.isAnonymous ? 'Anônimo' : feedback.customer}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">{feedback.formName}</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-sm text-gray-600 line-clamp-2 max-w-md">
-                            {feedback.comment}
-                          </p>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex flex-col gap-2">
-                            <div className="flex text-sm">
-                              {renderStars(feedback.opinStars)}
-                            </div>
-                            <span className={`inline-flex px-2 py-1 rounded text-xs font-medium border ${getSentimentColor(feedback.sentiment)}`}>
-                              {feedback.sentiment === 'positive' ? 'Positivo' : 
-                               feedback.sentiment === 'negative' ? 'Negativo' : 'Neutro'}
+            {feedbacks.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-4xl">📭</span>
+                </div>
+                <p className="text-gray-700 font-semibold">Nenhum feedback ainda</p>
+                <p className="text-sm text-gray-500 mt-2">Comece criando um formulário!</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200/50">
+                {feedbacks.map((feedback: any) => (
+                  <div key={feedback.id} className="p-6 hover:bg-gradient-to-r hover:from-indigo-50/30 hover:to-purple-50/30 transition-all">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">
+                              {feedback.modo === 'ANONYMOUS' || !feedback.nome_cliente
+                                ? '?'
+                                : feedback.nome_cliente.charAt(0).toUpperCase()}
                             </span>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {new Date(feedback.date).toLocaleDateString('pt-BR')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <button 
-                            onClick={() => setSelectedFeedback(feedback)}
-                            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {feedback.modo === 'ANONYMOUS' || !feedback.nome_cliente
+                                ? 'Anônimo'
+                                : feedback.nome_cliente}
+                            </p>
+                            <p className="text-xs text-gray-500">{feedback.forms?.nome || 'Formulário'}</p>
+                          </div>
+                        </div>
+                        <p className="text-gray-700 mb-3 leading-relaxed">
+                          {feedback.comentario_texto || 'Sem comentário'}
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <div className="flex">{renderStars(feedback.opinstars)}</div>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm ${getSentimentColor(
+                              feedback.opinstars
+                            )}`}
                           >
-                            Ver detalhes
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'analytics' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Themes */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">Temas Mais Mencionados</h3>
-              <div className="space-y-3">
-                {mockData.aiInsights.themes.map((theme, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <span className="text-sm font-medium text-gray-900">{theme.theme}</span>
-                    <span className="text-sm text-gray-600">{theme.count}</span>
+                            {feedback.opinstars >= 4
+                              ? '😊 Positivo'
+                              : feedback.opinstars === 3
+                                ? '😐 Neutro'
+                                : '😞 Negativo'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">
+                          {new Date(feedback.data_envio).toLocaleDateString('pt-BR', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Sentiment Analysis */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">Análise de Sentimentos</h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-gray-600">Positivos</span>
-                    <span className="text-sm font-medium text-gray-900">{mockData.overview.positivePercentage}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full bg-emerald-500" 
-                      style={{width: `${mockData.overview.positivePercentage}%`}}
-                    ></div>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-gray-600">Negativos</span>
-                    <span className="text-sm font-medium text-gray-900">{mockData.overview.negativePercentage}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full bg-rose-500" 
-                      style={{width: `${mockData.overview.negativePercentage}%`}}
-                    ></div>
-                  </div>
-                </div>
-
-                <div className="text-center p-4 bg-indigo-50 rounded-lg mt-4">
-                  <p className="text-sm text-gray-600">Satisfação Geral</p>
-                  <p className="text-2xl font-semibold text-indigo-600 mt-1">
-                    {mockData.overview.averageOpinStars}/5
-                  </p>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
-        {activeTab === 'forms' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900">Formulários</h2>
-              <button className="bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-indigo-700">
-                Novo Formulário
+        {activeTab === 'forms' && forms.length > 0 && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Seus Formulários</h2>
+              <button className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
+                + Novo Formulário
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {mockData.forms.map((form) => (
-                <div key={form.id} className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {forms.map((form: any) => (
+                <div
+                  key={form.id}
+                  className="group bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 p-6 hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300"
+                >
                   <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-base font-semibold text-gray-900 mb-1">{form.name}</h3>
-                      <p className="text-xs text-gray-500">
-                        {new Date(form.created).toLocaleDateString('pt-BR')}
-                      </p>
+                    <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <span className="text-white text-xl">📋</span>
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      form.status === 'active' 
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                        : 'bg-amber-50 text-amber-700 border border-amber-200'
-                    }`}>
-                      {form.status === 'active' ? 'Ativo' : 'Pausado'}
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm ${form.status === 'ACTIVE'
+                          ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white'
+                          : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white'
+                        }`}
+                    >
+                      {form.status === 'ACTIVE' ? '✓ Ativo' : form.status}
                     </span>
                   </div>
-                  
-                  <div className="mb-4">
-                    <p className="text-2xl font-semibold text-gray-900">{form.responses}</p>
-                    <p className="text-sm text-gray-600">respostas</p>
+
+                  <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2">{form.nome}</h3>
+
+                  <div className="mb-4 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100">
+                    <p className="text-3xl font-bold text-indigo-600 mb-1">
+                      {form._count?.feedbacks || 0}
+                    </p>
+                    <p className="text-sm text-gray-600">respostas coletadas</p>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button className="flex-1 text-sm text-gray-700 border border-gray-300 px-3 py-2 rounded-lg hover:bg-gray-50">
-                      Resultados
-                    </button>
-                    <button className="flex-1 text-sm text-gray-700 border border-gray-300 px-3 py-2 rounded-lg hover:bg-gray-50">
-                      Editar
-                    </button>
-                  </div>
+                  <button className="w-full py-3 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-800 transition-all shadow-lg">
+                    Ver Detalhes →
+                  </button>
                 </div>
               ))}
             </div>
           </div>
         )}
-      </main>
 
-      {/* Modal */}
-      {selectedFeedback && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Detalhes do Feedback</h3>
-              <button 
-                onClick={() => setSelectedFeedback(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
+        {activeTab === 'overview' && (
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Gráfico de distribuição */}
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-6">Distribuição de Avaliações</h3>
+              <div className="space-y-4">
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = stats?.starDistribution?.[star] || 0;
+                  const total = stats?.totalFeedbacks || 1;
+                  const percentage = (count / total) * 100;
+
+                  return (
+                    <div key={star} className="flex items-center gap-4">
+                      <div className="flex items-center gap-1 w-20">
+                        <span className="text-sm font-semibold text-gray-700">{star}</span>
+                        <span className="text-amber-400">★</span>
+                      </div>
+                      <div className="flex-1 bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${percentage}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-700 w-12 text-right">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Cliente</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {selectedFeedback.isAnonymous ? 'Anônimo' : selectedFeedback.customer}
-                  </p>
-                </div>
-                
-                {!selectedFeedback.isAnonymous && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">E-mail</p>
-                    <p className="text-sm font-medium text-gray-900">{selectedFeedback.email}</p>
+
+            {/* Sentimento geral */}
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-6">Análise de Sentimento</h3>
+              <div className="space-y-4">
+                <div className="p-4 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-semibold text-emerald-700">😊 Positivos</span>
+                    <span className="text-xl font-bold text-emerald-600">
+                      {stats?.sentimentDistribution?.positivePercentage || 0}%
+                    </span>
                   </div>
-                )}
-                
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Avaliação</p>
-                  <div className="flex text-sm">{renderStars(selectedFeedback.opinStars)}</div>
+                  <div className="w-full bg-emerald-200 rounded-full h-2">
+                    <div
+                      className="bg-emerald-600 h-2 rounded-full"
+                      style={{ width: `${stats?.sentimentDistribution?.positivePercentage || 0}%` }}
+                    ></div>
+                  </div>
                 </div>
-                
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Data</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {new Date(selectedFeedback.date).toLocaleDateString('pt-BR')}
-                  </p>
+
+                <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-semibold text-amber-700">😐 Neutros</span>
+                    <span className="text-xl font-bold text-amber-600">
+                      {((stats?.sentimentDistribution?.neutral || 0) / (stats?.totalFeedbacks || 1) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-amber-200 rounded-full h-2">
+                    <div
+                      className="bg-amber-600 h-2 rounded-full"
+                      style={{ width: `${((stats?.sentimentDistribution?.neutral || 0) / (stats?.totalFeedbacks || 1) * 100)}%` }}
+                    ></div>
+                  </div>
                 </div>
-              </div>
-              
-              <div>
-                <p className="text-xs text-gray-500 mb-2">Comentário</p>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {selectedFeedback.comment}
-                </p>
-              </div>
-              
-              <div className="flex justify-end gap-3 pt-4">
-                {!selectedFeedback.isAnonymous && (
-                  <button className="bg-indigo-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-indigo-700">
-                    Responder
-                  </button>
-                )}
-                <button 
-                  onClick={() => setSelectedFeedback(null)}
-                  className="text-sm text-gray-700 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50"
-                >
-                  Fechar
-                </button>
+
+                <div className="p-4 bg-gradient-to-r from-rose-50 to-red-50 rounded-xl border border-rose-200">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-semibold text-rose-700">😞 Negativos</span>
+                    <span className="text-xl font-bold text-rose-600">
+                      {stats?.sentimentDistribution?.negativePercentage || 0}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-rose-200 rounded-full h-2">
+                    <div
+                      className="bg-rose-600 h-2 rounded-full"
+                      style={{ width: `${stats?.sentimentDistribution?.negativePercentage || 0}%` }}
+                    ></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </main>
     </div>
   );
 }

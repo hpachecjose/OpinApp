@@ -3,20 +3,69 @@ import 'dotenv/config';
 import express from "express";
 import cors from "cors";
 import crypto from "crypto";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { PrismaClient } from "@prisma/client";
 import { hashPassword, verifyPassword } from "./utils/hashPassword.js";
 import { generateToken } from "./utils/jwt.js";
 import { authenticate } from "./middlewares/auth.js";
 import { sendEmail } from "./utils/email.js";
+import { validate, schemas } from "./utils/validators.js";
+import logger from "./utils/logger.js";
+
+// Importar rotas
+import formsRoutes from "./routes/forms.routes.js";
+import feedbacksRoutes from "./routes/feedbacks.routes.js";
+import channelsRoutes from "./routes/channels.routes.js";
 
 const app = express();
 const prisma = new PrismaClient();
 
-// Middlewares globais
-app.use(cors());
+// ========================================
+// MIDDLEWARES GLOBAIS
+// ========================================
+
+// Segurança HTTP headers
+app.use(helmet());
+
+// CORS
+app.use(cors({
+  origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+  credentials: true
+}));
+
+// Parse JSON
 app.use(express.json());
 
-// Rota de health check
+// Rate limiting global
+const limiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 15) * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_MAX || 100),
+  message: 'Muitas requisições deste IP, tente novamente mais tarde.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(limiter);
+
+// Rate limiting mais restrito para autenticação
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 5, // 5 tentativas
+  message: 'Muitas tentativas de login, tente novamente em 15 minutos.',
+  skipSuccessfulRequests: true
+});
+
+// Logging de requisições
+app.use((req, res, next) => {
+  logger.http(`${req.method} ${req.path}`);
+  next();
+});
+
+// ========================================
+// ROTA DE HEALTH CHECK
+// ========================================
+
 app.get("/", (req, res) => {
   res.json({
     message: "OpinApp API rodando!",
@@ -30,23 +79,10 @@ app.get("/", (req, res) => {
 // ========================================
 
 // Cadastro de usuário
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", authLimiter, validate(schemas.register), async (req, res) => {
   const { name, email, password, company } = req.body;
 
   try {
-    // Validação básica
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        error: "Nome, email e senha são obrigatórios."
-      });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({
-        error: "Senha deve ter no mínimo 6 caracteres."
-      });
-    }
-
     // Verificar se email já existe
     const existing = await prisma.users.findUnique({
       where: { email }
@@ -86,8 +122,10 @@ app.post("/api/auth/register", async (req, res) => {
       token,
       user
     });
+
+    logger.info(`Novo usuário cadastrado: ${user.id} - ${user.email}`);
   } catch (error) {
-    console.error('Erro no registro:', error);
+    logger.error('Erro no registro:', error);
     res.status(500).json({
       error: "Erro ao cadastrar usuário."
     });
@@ -95,17 +133,10 @@ app.post("/api/auth/register", async (req, res) => {
 });
 
 // Login de usuário
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", authLimiter, validate(schemas.login), async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Validação básica
-    if (!email || !password) {
-      return res.status(400).json({
-        error: "Email e senha são obrigatórios."
-      });
-    }
-
     // Buscar usuário
     const user = await prisma.users.findUnique({
       where: { email },
@@ -146,8 +177,10 @@ app.post("/api/auth/login", async (req, res) => {
       token,
       user: userWithoutPassword
     });
+
+    logger.info(`Login realizado: ${user.id} - ${user.email}`);
   } catch (error) {
-    console.error('Erro no login:', error);
+    logger.error('Erro no login:', error);
     res.status(500).json({
       error: "Erro ao fazer login."
     });
@@ -176,7 +209,7 @@ app.get("/api/auth/me", authenticate, async (req, res) => {
 
     res.json({ user });
   } catch (error) {
-    console.error('Erro ao buscar usuário:', error);
+    logger.error('Erro ao buscar usuário:', error);
     res.status(500).json({ error: "Erro ao buscar dados do usuário." });
   }
 });
@@ -186,16 +219,14 @@ app.get("/api/auth/me", authenticate, async (req, res) => {
 // ========================================
 
 // 1. Solicitar recuperação de senha
-app.post("/api/auth/request-reset", async (req, res) => {
+app.post("/api/auth/request-reset", validate(schemas.requestReset), async (req, res) => {
   const { email } = req.body;
 
   try {
     const user = await prisma.users.findUnique({ where: { email } });
 
     if (!user) {
-      // Por segurança, não informamos se o email existe ou não, mas retornamos sucesso.
-      // Ou podemos retornar erro se preferir UX sobre segurança estrita.
-      // Aqui vou retornar sucesso simulado.
+      // Por segurança, não informamos se o email existe ou não
       return res.json({ message: "Se o email existir, um link de recuperação será enviado." });
     }
 
@@ -213,7 +244,7 @@ app.post("/api/auth/request-reset", async (req, res) => {
       }
     });
 
-    // Link de recuperação (ajuste a URL conforme seu frontend)
+    // Link de recuperação
     const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
     // Enviar email
@@ -229,13 +260,14 @@ app.post("/api/auth/request-reset", async (req, res) => {
 
     res.json({ message: "Se o email existir, um link de recuperação será enviado." });
 
+    logger.info(`Solicitação de reset de senha para: ${email}`);
   } catch (error) {
-    console.error("Erro ao solicitar reset:", error);
+    logger.error("Erro ao solicitar reset:", error);
     res.status(500).json({ error: "Erro ao processar solicitação." });
   }
 });
 
-// 2. Validar token (opcional, útil para o frontend verificar antes de mostrar o form)
+// 2. Validar token
 app.post("/api/auth/validate-token", async (req, res) => {
   const { token } = req.body;
 
@@ -259,16 +291,8 @@ app.post("/api/auth/validate-token", async (req, res) => {
 });
 
 // 3. Redefinir senha
-app.post("/api/auth/reset", async (req, res) => {
+app.post("/api/auth/reset", validate(schemas.resetPassword), async (req, res) => {
   const { token, newPassword } = req.body;
-
-  if (!token || !newPassword) {
-    return res.status(400).json({ error: "Token e nova senha são obrigatórios." });
-  }
-
-  if (newPassword.length < 6) {
-    return res.status(400).json({ error: "A senha deve ter no mínimo 6 caracteres." });
-  }
 
   try {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -301,10 +325,43 @@ app.post("/api/auth/reset", async (req, res) => {
 
     res.json({ message: "Senha redefinida com sucesso!" });
 
+    logger.info(`Senha redefinida para usuário ${resetRequest.userId}`);
   } catch (error) {
-    console.error("Erro ao redefinir senha:", error);
+    logger.error("Erro ao redefinir senha:", error);
     res.status(500).json({ error: "Erro ao redefinir senha." });
   }
+});
+
+// ========================================
+// ROTAS DE NEGÓCIO
+// ========================================
+
+app.use('/api/forms', formsRoutes);
+app.use('/api/feedbacks', feedbacksRoutes);
+app.use('/api/channels', channelsRoutes);
+
+// ========================================
+// TRATAMENTO DE ERROS 404
+// ========================================
+
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Rota não encontrada",
+    path: req.path
+  });
+});
+
+// ========================================
+// TRATAMENTO DE ERROS GLOBAL
+// ========================================
+
+app.use((error, req, res, next) => {
+  logger.error('Erro não tratado:', error);
+
+  res.status(error.status || 500).json({
+    error: error.message || "Erro interno do servidor",
+    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+  });
 });
 
 // ========================================
@@ -314,14 +371,14 @@ app.post("/api/auth/reset", async (req, res) => {
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor OpinApp rodando na porta ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}`);
-  console.log(`🔐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`🚀 Servidor OpinApp rodando na porta ${PORT}`);
+  logger.info(`📍 Health check: http://localhost:${PORT}`);
+  logger.info(`🔐 Ambiente: ${process.env.NODE_ENV || 'development'}`);
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🔴 Encerrando servidor...');
+  logger.info('\n🔴 Encerrando servidor...');
   await prisma.$disconnect();
   process.exit(0);
 });
