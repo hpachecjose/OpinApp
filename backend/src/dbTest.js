@@ -5,14 +5,14 @@ import { hashPassword } from "./utils/hashPassword.js"; // supondo que exista
 const prisma = new PrismaClient();
 
 async function main() {
-  const existing = await prisma.user.findUnique({ where: { email: "henrique@example.com" } });
+  const existing = await prisma.users.findUnique({ where: { email: "henrique@example.com" } });
   if (!existing) {
     const hashed = await hashPassword("123456");
-    const user = await prisma.user.create({
+    const user = await prisma.users.create({
       data: {
-        name: "Henrique",
+        nome: "Henrique",
         email: "henrique@example.com",
-        hashedPassword: hashed   // <--- usar hashedPassword para ficar consistente com server.js
+        senha_hash: hashed   // <--- usar senha_hash para ficar consistente com server.js
       }
     });
     console.log("Usuário criado:", user);
@@ -20,7 +20,7 @@ async function main() {
     console.log("Usuário já existe:", existing);
   }
 
-  const users = await prisma.user.findMany();
+  const users = await prisma.users.findMany();
   console.log("Usuários no banco:", users);
 }
 

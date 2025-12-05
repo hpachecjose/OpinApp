@@ -92,4 +92,19 @@ model users {
   integrations  integrations[]
   logs          logs[]
   reports       reports[]
+  passwordResets PasswordReset[]
+}
+
+model PasswordReset {
+  id         String   @id @default(cuid())
+  userId     Int
+  tokenHash  String
+  expiresAt  DateTime
+  used       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user       users    @relation(fields: [userId], references: [id])
+
+  @@index([tokenHash])
+  @@index([userId])
 }
