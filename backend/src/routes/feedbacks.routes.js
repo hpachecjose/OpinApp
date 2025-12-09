@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middlewares/auth.js';
 import { validate, validateParams, schemas, idParamSchema } from '../utils/validators.js';
 import logger from '../utils/logger.js';
+import { analyzeFeedback } from '../services/ai.service.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -29,6 +30,12 @@ router.post('/', validate(schemas.createFeedback), async (req, res) => {
             return res.status(400).json({ error: 'Este formulário não está aceitando respostas no momento' });
         }
 
+        // Análise de IA (se houver comentário)
+        let aiResult = null;
+        if (comentario_texto && comentario_texto.length > 5) {
+            aiResult = await analyzeFeedback(comentario_texto);
+        }
+
         const feedback = await prisma.feedbacks.create({
             data: {
                 form_id,
@@ -37,7 +44,8 @@ router.post('/', validate(schemas.createFeedback), async (req, res) => {
                 modo: modo || 'PUBLIC',
                 nome_cliente: modo === 'ANONYMOUS' ? null : nome_cliente,
                 email_cliente: modo === 'ANONYMOUS' ? null : email_cliente,
-                status_moderacao: 'PENDING'
+                status_moderacao: aiResult?.moderacao ? 'BLOCKED' : 'PENDING',
+                resultado_ia_json: aiResult || undefined
             }
         });
 

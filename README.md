@@ -1,132 +1,108 @@
 # OpinApp
 
-Resumo
------
-Aplicação front-end Next.js para visualização e gestão de feedbacks (OpinApp). Implementação atual usa dados simulados (mock) e components UI prontos. Não há backend de autenticação nem mecanismo de recuperação de senha implementado neste repositório — apenas telas e fluxo visual.
+O **OpinApp** é uma plataforma SaaS brasileira para coleta e análise inteligente de feedbacks de clientes. O sistema centraliza comentários recebidos através de múltiplos canais e tem como objetivo utilizar Inteligência Artificial para processar, analisar e gerar insights automáticos.
 
-Tecnologias
-----------
-- Next.js (app router, React)
-- Tailwind CSS
-- TypeScript / JavaScript (arquivos mistos conforme o projeto)
-- Estrutura: frontend/src/app (páginas e componentes)
+## 🚀 Visão Geral
 
-Pré-requisitos
---------------
-- Node.js 18+ instalado
-- npm ou yarn (preferível npm)
-- Git instalado
+Empresas coletam feedbacks de forma desorganizada. O OpinApp resolve isso centralizando tudo em um único lugar, permitindo:
+1. **Coleta Centralizada:** De múltiplos canais (Links, QR Code).
+2. **Sistema OpinStars:** Avaliação híbrida (0-5 estrelas + texto).
+3. **Dashboard:** Métricas visuais e gerenciamento de formulários.
+4. **Análise de Sentimento:** Processada por IA (**Google Gemini**), gerando classificação, resumo e detecção de temas.
 
-Instalação
-----------
+## 🛠️ Tecnologias e Arquitetura
+
+O projeto opera no modelo **Full Stack** com uma arquitetura moderna e escalável.
+
+### Backend (API)
+- **Node.js**: Ambiente de execução.
+- **Express**: Framework web.
+- **Prisma ORM**: Gerenciamento de banco de dados e migrations.
+- **Banco de Dados**: PostgreSQL (Schemas de Users, Forms, Feedbacks, PasswordReset).
+- **Autenticação**: JWT (JSON Web Tokens) e Argon2 para hash de senhas.
+- **Segurança**: Helmet, Rate Limiting, CORS configurado.
+
+### Frontend
+- **Framework**: Next.js 14 (App Router).
+- **Estilização**: Tailwind CSS 4.
+- **Gerenciamento de Estado**: Zustand (Auth, Forms, Feedbacks).
+- **UI**: Responsiva e dinâmica, preparada para PWA.
+
+## 📂 Estrutura do Projeto
+
+```
+opinapp/
+├── frontend/             # Aplicação Next.js
+│   ├── src/app/          # Páginas e Rotas (Dashboard, Login, Forms)
+│   ├── src/services/     # Integração com API (Axios)
+│   └── src/store/        # Gerenciamento de Estado Global
+│
+├── backend/              # API Node.js/Express
+│   ├── src/controllers/  # (Lógica consolidada em rotas no MVP)
+│   ├── src/middlewares/  # Auth, RateLimit
+│   ├── src/routes/       # Definição de endpoints
+│   └── prisma/           # Schema do Banco de Dados
+```
+
+## ⚡ Como Rodar o Projeto
+
+### Pré-requisitos
+- Node.js 18+
+- Banco de dados PostgreSQL (ou SQLite para testes rápidos, configurável no `.env`)
+
+### Instalação
+
 1. Clone o repositório:
-   ```
+   ```bash
    git clone https://github.com/hpachecjose/opinapp.git
    cd opinapp
    ```
 
-2. Instale dependências:
+2. Instale as dependências (Raiz, Frontend e Backend):
+   ```bash
+   npm install      # Instala dependências da raiz (concurrently)
+   npm run install:all # Script customizado para instalar tudo
    ```
-   npm install
-   # ou
-   yarn
-   ```
+   *Caso o script `install:all` não esteja disponível, execute `npm install` em cada pasta manualmente.*
 
-Como rodar (desenvolvimento)
-----------------------------
-1. Iniciar servidor de desenvolvimento:
-   ```
-   npm run dev
-   # ou
-   yarn dev
-   ```
-2. Abra no navegador:
-   ```
-   http://localhost:3000
+3. Configure as variáveis de ambiente:
+   - Crie um arquivo `.env` na pasta `backend/` com a `DATABASE_URL`, `JWT_SECRET` e `GEMINI_API_KEY`.
+   - Crie um arquivo `.env.local` na pasta `frontend/` se necessário (ex: `NEXT_PUBLIC_API_URL`).
+
+4. Configure o Banco de Dados (Prisma):
+   ```bash
+   cd backend
+   npx prisma generate
+   npx prisma db push # Cria as tabelas sem migrations (dev)
    ```
 
-Build e produção
------------------
-1. Build:
-   ```
-   npm run build
-   # ou
-   yarn build
-   ```
-2. Iniciar servidor (produção):
-   ```
-   npm start
-   # ou
-   yarn start
-   ```
+### Executando (Desenvolvimento)
 
-Testes
-------
-- Atualmente não há suíte de testes configurada no projeto. Recomenda-se adicionar Jest/React Testing Library para componentes e endpoints futuros.
+Na raiz do projeto, execute:
 
-Estrutura principal de diretórios
--------------------------------
-- frontend/src/app — páginas (ex.: /dashboard, /forgot)
-- frontend/src/components — componentes (quando presentes)
-- public — assets estáticos (logos, imagens)
-- scripts / configs — (se existirem)
+```bash
+npm run dev
+```
 
-Funcionalidades implementadas
------------------------------
-- Dashboard de exemplo com dados mock (frontend/src/app/dashboard/page.tsx).
-- Página de recuperação de senha (UI) em frontend/src/app/forgot/page.tsx — apenas interface, sem lógica backend.
-- Páginas e componentes UI responsivos em Tailwind.
+Este comando utilizará o `concurrently` para subir simultaneamente:
+- **Frontend:** http://localhost:3000
+- **Backend:** http://localhost:4000 (ou porta definida no .env)
 
-Estado atual sobre autenticação e recuperação de senha
------------------------------------------------------
-- Não existe backend de autenticação nem endpoints de API para login, reset de senha ou envio de e-mail.
-- Fluxo de UI para "Recuperar senha" está presente (frontend/src/app/forgot/page.tsx) mas o handleSubmit faz apenas log no console e altera estado local.
-- Recomenda-se implementar endpoints (ex.: /api/auth/request-reset, /api/auth/reset) e tabela password_resets conforme o plano técnico proposto antes de expor ao público.
+## ✅ Estado Atual do Desenvolvimento (MVP)
 
-Variáveis de ambiente sugeridas (quando implementar backend)
------------------------------------------------------------
-- NEXT_PUBLIC_APP_URL=https://app.example.com
-- SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
-- DATABASE_URL
-- TOKEN_PEPPER (segredo para hashing de tokens)
-- JWT_SECRET (se usar JWT)
-- RECAPTCHA_SECRET (se usar reCAPTCHA)
+O projeto encontra-se funcional com as seguintes features implementadas:
 
-Exemplos de uso
----------------
-- Acesse /dashboard para ver o layout com dados simulados.
-- Acesse /forgot para visualizar o formulário de recuperação (apenas UI).
-- Exemplos de chamadas para quando o backend existir:
-  - POST /api/auth/request-reset { email }
-  - POST /api/auth/validate-token { token }
-  - POST /api/auth/reset { token, newPassword }
+- [x] Landing Page, Páginas Institucionais e Legais.
+- [x] Sistema de Autenticação Completo (Login, Registro, Recuperação de Senha).
+- [x] Dashboard Interativo (Gráficos de distribuição, Lista de Feedbacks).
+- [x] Criação e Gestão de Formulários.
+- [x] Coleta de Feedbacks (Links Públicos).
+- [x] Análise de Sentimento com IA (Google Gemini).
+- [x] Moderação automática de conteúdo.
 
-Como contribuir
----------------
-1. Fork + branch:
-   ```
-   git checkout -b feat/descrição-da-feature
-   ```
-2. Adicione mudanças claras e pequenos commits.
-3. Garanta que não há segredos no commit (.env, chaves).
-4. Abra Pull Request descrevendo as mudanças e testes.
-5. Sugestões de boas práticas:
-   - Use ESLint/Prettier
-   - Escreva testes unitários para lógica crítica
-   - Adicione documentação das novas rotas e variáveis de ambiente
+**Próximos Passos (Roadmap):**
+- [ ] Exportação de relatórios (PDF/Excel).
+- [ ] Refinamento da Moderação de Conteúdo.
 
-Boas práticas de segurança (importante)
---------------------------------------
-- Nunca commite .env ou chaves. Use .gitignore.
-- Armazene segredos em GitHub Secrets para CI/CD.
-- Implementar HTTPS, HSTS e validações de backend ao adicionar autenticação.
-- Armazenar apenas hash de tokens de reset (nunca token em texto plano).
-
-Contato / Links
----------------
-- Repositório GitHub: https://github.com/hpachecjose/opinapp
-- Issues / Pull Requests: usar a seção de Issues do repositório para reportar problemas ou sugerir melhorias.
-
-Notas finais
------------
-- Este README reflete o estado atual do projeto: frontend focado em UI com dados mockados. Para produção é necessário integrar backend seguro (autenticação, recuperação de senha, gerenciamento de sessões, envio de e-mails) conforme o fluxo técnico proposto.
+## 📄 Licença
+Proprietário: OpinApp Team. Todos os direitos reservados.
