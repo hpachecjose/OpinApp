@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuthStore } from "../store/store";
 
 
 export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isAuthenticated } = useAuthStore();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const scrollToPrecos = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -35,17 +42,27 @@ export default function Home() {
               <a href="/about" className="text-muted-foreground hover:text-foreground transition-colors duration-200 text-lg font-medium cursor-pointer">Sobre</a>
               <a href="#precos" onClick={scrollToPrecos} className="text-muted-foreground hover:text-foreground transition-colors duration-200 text-lg font-medium cursor-pointer">Preços</a>
               <a href="/contact" className="text-muted-foreground hover:text-foreground transition-colors duration-200 text-lg font-medium cursor-pointer">Contato</a>
-              <a href="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors duration-200 text-lg font-medium cursor-pointer">Dashboard</a>
+              {isMounted && isAuthenticated && (
+                <a href="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors duration-200 text-lg font-medium cursor-pointer">Dashboard</a>
+              )}
 
 
             </nav>
 
             {/* Desktop Auth Buttons */}
             <div className="hidden lg:flex items-center gap-1">
-              <a className="link-login text-muted-foreground hover:text-foreground transition-colors duration-200 mr-4 text-lg font-medium cursor-pointer" href="/login">Login</a>
-              <a href="/enrollment" className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 text-lg cursor-pointer">
-                Inscrever-se
-              </a>
+              {isMounted && isAuthenticated ? (
+                <a href="/dashboard" className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 text-lg cursor-pointer">
+                  Ir para Dashboard
+                </a>
+              ) : (
+                <>
+                  <a className="link-login text-muted-foreground hover:text-foreground transition-colors duration-200 mr-4 text-lg font-medium cursor-pointer" href="/login">Login</a>
+                  <a href="/enrollment" className="bg-primary text-white px-6 py-2 rounded-lg font-medium hover:bg-primary-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 text-lg cursor-pointer">
+                    Inscrever-se
+                  </a>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -70,10 +87,18 @@ export default function Home() {
 
               {/* Mobile Auth Buttons */}
               <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-gray-100 items-center">
-                <a href="/login" className="link-login text-muted-foreground hover:text-foreground transition-colors duration-200 text-lg font-medium py-2 text-center w-full sm:w-auto cursor-pointer">Login</a>
-                <a href="/enrollment" className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 text-lg w-full sm:w-auto text-center block cursor-pointer">
-                  Inscrever-se
-                </a>
+                {isMounted && isAuthenticated ? (
+                  <a href="/dashboard" className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 text-lg w-full sm:w-auto text-center block cursor-pointer">
+                    Ir para Dashboard
+                  </a>
+                ) : (
+                  <>
+                    <a href="/login" className="link-login text-muted-foreground hover:text-foreground transition-colors duration-200 text-lg font-medium py-2 text-center w-full sm:w-auto cursor-pointer">Login</a>
+                    <a href="/enrollment" className="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 text-lg w-full sm:w-auto text-center block cursor-pointer">
+                      Inscrever-se
+                    </a>
+                  </>
+                )}
               </div>
             </nav>
           </div>

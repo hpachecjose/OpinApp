@@ -7,104 +7,187 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model channels {
-  id                Int     @id @default(autoincrement())
-  form_id           Int
-  tipo              String? @db.VarChar(20)
-  link              String?
-  estatisticas_json Json?
-  forms             forms   @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_channels_form")
+// ==================== USUÁRIOS ====================
+model users {
+  id               Int            @id @default(autoincrement())
+  nome             String?        @db.VarChar(100)
+  email            String         @unique @db.VarChar(100)
+  senha_hash       String         @db.VarChar(255)
+  empresa          String?        @db.VarChar(100)
+  plano            String?        @db.VarChar(20) // FREE, BASIC, PRO, ENTERPRISE
+  data_cadastro    DateTime?      @default(now()) @db.Timestamp(6)
+  ultimo_acesso    DateTime?
+  ativo            Boolean        @default(true)
+  perfil_json      Json?
+  notificacoes     Json?
+
+  // Relações
+  forms            forms[]
+  integrations     integrations[]
+  logs             logs[]
+  reports          reports[]
+  passwordResets   PasswordReset[]
+  auditLogs        audit_logs[]
+
+  @@index([email])
+  @@index([ativo])
+  @@index([data_cadastro])
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+// ==================== RESET DE SENHA ====================
+model PasswordReset {
+  id         String   @id @default(cuid())
+  userId     Int
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  used       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  usedAt     DateTime?
+
+  user       users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ==================== FORMULÁRIOS ====================
+model forms {
+  id           Int         @id @default(autoincrement())
+  nome         String      @db.VarChar(100)
+  usuario_id   Int
+  campos_json  Json?       // { fields: [{ id, type, label, required, options? }] }
+  status       String      @db.VarChar(20) // DRAFT, PUBLISHED, ARCHIVED
+  data_criacao DateTime    @default(now()) @db.Timestamp(6)
+  deletado_em  DateTime?   // Soft delete para auditoria
+
+  // Relações
+  users        users       @relation(fields: [usuario_id], references: [id], onDelete: Cascade, map: "fk_forms_usuario")
+  channels     channels[]
+  feedbacks    feedbacks[]
+  reports      reports[]
+
+  @@index([usuario_id])
+  @@index([status])
+  @@index([data_criacao])
+}
+
+// ==================== CANAIS DE DISTRIBUIÇÃO ====================
+model channels {
+  id                Int       @id @default(autoincrement())
+  form_id           Int
+  tipo              String    @db.VarChar(20) // LINK, QR, EMAIL, WHATSAPP, TELEGRAM
+  link              String?
+  estatisticas_json Json?     // { views, responses, conversion_rate }
+  ativo             Boolean   @default(true)
+  data_criacao      DateTime  @default(now())
+
+  // Relações
+  forms             forms     @relation(fields: [form_id], references: [id], onDelete: Cascade, map: "fk_channels_form")
+
+  @@index([form_id])
+  @@index([tipo])
+}
+
+// ==================== FEEDBACKS ====================
 model feedbacks {
   id                Int       @id @default(autoincrement())
   form_id           Int
-  opinstars         Int?      @db.SmallInt
-  comentario_texto  String?
-  modo              String?   @db.VarChar(20)
+  opinstars         Int?      @db.SmallInt // 1-5
+  comentario_texto  String?   @db.Text
+  modo              String?   @db.VarChar(20) // ANONYMOUS, NAMED
   nome_cliente      String?   @db.VarChar(100)
   email_cliente     String?   @db.VarChar(100)
-  data_envio        DateTime? @default(now()) @db.Timestamp(6)
-  resultado_ia_json Json?
-  status_moderacao  String?   @db.VarChar(20)
-  forms             forms     @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_feedbacks_form")
+  data_envio        DateTime  @default(now()) @db.Timestamp(6)
+  resultado_ia_json Json?     // { sentiment, themes, recommendations }
+  status_moderacao  String?   @db.VarChar(20) // PENDING, APPROVED, REJECTED
+
+  // Relações
+  forms             forms     @relation(fields: [form_id], references: [id], onDelete: Cascade, map: "fk_feedbacks_form")
+
+  @@index([form_id])
+  @@index([email_cliente])
+  @@index([data_envio])
+  @@index([status_moderacao])
 }
 
-model forms {
-  id           Int         @id @default(autoincrement())
-  nome         String?     @db.VarChar(100)
-  usuario_id   Int
-  campos_json  Json?
-  status       String?     @db.VarChar(20)
-  data_criacao DateTime?   @default(now()) @db.Timestamp(6)
-  channels     channels[]
-  feedbacks    feedbacks[]
-  users        users       @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_forms_usuario")
-  reports      reports[]
-}
-
-model integrations {
-  id          Int     @id @default(autoincrement())
-  usuario_id  Int
-  tipo        String? @db.VarChar(50)
-  config_json Json?
-  users       users   @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_integrations_usuario")
-}
-
-model logs {
-  id         Int       @id @default(autoincrement())
-  usuario_id Int?
-  acao       String?
-  data_hora  DateTime? @default(now()) @db.Timestamp(6)
-  ip         String?   @db.VarChar(45)
-  users      users?    @relation(fields: [usuario_id], references: [id], onUpdate: NoAction, map: "fk_logs_usuario")
-}
-
+// ==================== RELATÓRIOS ====================
 model reports {
   id              Int       @id @default(autoincrement())
   form_id         Int
   usuario_id      Int
-  tipo            String?   @db.VarChar(20)
-  data_geracao    DateTime? @default(now()) @db.Timestamp(6)
+  tipo            String    @db.VarChar(20) // EXCEL, PDF, JSON
+  data_geracao    DateTime  @default(now()) @db.Timestamp(6)
   caminho_arquivo String?
-  forms           forms     @relation(fields: [form_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reports_form")
-  users           users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_reports_usuario")
+  status          String    @db.VarChar(20) // PENDING, READY, FAILED
+
+  // Relações
+  forms           forms     @relation(fields: [form_id], references: [id], onDelete: Cascade, map: "fk_reports_form")
+  users           users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, map: "fk_reports_usuario")
+
+  @@index([form_id])
+  @@index([usuario_id])
+  @@index([data_geracao])
 }
 
+// ==================== INTEGRAÇÕES ====================
+model integrations {
+  id          Int     @id @default(autoincrement())
+  usuario_id  Int
+  tipo        String  @db.VarChar(50) // SLACK, ZAPIER, WEBHOOK, etc
+  config_json Json    // Configuração específica da integração
+  ativo       Boolean @default(true)
+  data_criacao DateTime @default(now())
+
+  // Relações
+  users       users   @relation(fields: [usuario_id], references: [id], onDelete: Cascade, map: "fk_integrations_usuario")
+
+  @@index([usuario_id])
+  @@index([tipo])
+}
+
+// ==================== LOGS ====================
+model logs {
+  id         Int       @id @default(autoincrement())
+  usuario_id Int?
+  acao       String    @db.VarChar(255)
+  data_hora  DateTime  @default(now()) @db.Timestamp(6)
+  ip         String?   @db.VarChar(45)
+
+  // Relações
+  users      users?    @relation(fields: [usuario_id], references: [id], onDelete: SetNull, map: "fk_logs_usuario")
+
+  @@index([usuario_id])
+  @@index([data_hora])
+}
+
+// ==================== AUDIT LOGS ====================
+model audit_logs {
+  id            Int       @id @default(autoincrement())
+  usuario_id    Int?
+  tabela        String    @db.VarChar(50)
+  registro_id   Int
+  acao          String    @db.VarChar(10) // CREATE, UPDATE, DELETE
+  dados_antes   Json?
+  dados_depois  Json?
+  ip            String?   @db.VarChar(45)
+  user_agent    String?   @db.Text
+  data_hora     DateTime  @default(now())
+
+  // Relações
+  users         users?    @relation(fields: [usuario_id], references: [id], onDelete: SetNull)
+
+  @@index([usuario_id])
+  @@index([tabela])
+  @@index([data_hora])
+}
+
+// ==================== CONFIGURAÇÕES ====================
 model settings {
   id         Int    @id @default(autoincrement())
   chave      String @unique @db.VarChar(100)
-  valor_json Json?
-}
+  valor_json Json
+  atualizado_em DateTime @default(now())
 
-model users {
-  id            Int            @id @default(autoincrement())
-  nome          String?        @db.VarChar(100)
-  email         String         @unique @db.VarChar(100)
-  senha_hash    String         @db.VarChar(255)
-  empresa       String?        @db.VarChar(100)
-  plano         String?        @db.VarChar(20)
-  data_cadastro DateTime?      @default(now()) @db.Timestamp(6)
-  perfil_json   Json?
-  notificacoes  Json?
-  forms         forms[]
-  integrations  integrations[]
-  logs          logs[]
-  reports       reports[]
-  passwordResets PasswordReset[]
-}
-
-model PasswordReset {
-  id         String   @id @default(cuid())
-  userId     Int
-  tokenHash  String
-  expiresAt  DateTime
-  used       Boolean  @default(false)
-  createdAt  DateTime @default(now())
-
-  user       users    @relation(fields: [userId], references: [id])
-
-  @@index([tokenHash])
-  @@index([userId])
+  @@index([chave])
 }

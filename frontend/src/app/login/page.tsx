@@ -54,7 +54,7 @@ export default function LoginPage() {
                             <img
                                 src="/opinapp_logo_rb.png"
                                 alt="OpinApp Logo"
-                                className="h-8 w-auto"
+                                className="h-14 sm:h-20 w-auto"
                             />
                         </a>
                     </div>

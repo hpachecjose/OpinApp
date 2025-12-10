@@ -5,36 +5,46 @@
   "main": "src/server.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/server.js",
+    "dev": "ts-node src/server.ts",
     "start": "node src/server.js",
-    "test": "node src/dbTest.js",
-    "prisma:migrate": "prisma migrate dev",
+    "test": "jest",
+    "seed": "ts-node --transpile-only prisma/seed.ts",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
     "prisma:generate": "prisma generate",
-    "db:studio": "prisma studio"
+    "build": "tsc"
   },
   "author": "OpinApp Team",
   "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@prisma/client": "6.16.2",
+    "@prisma/client": "^5.7.0",
     "argon2": "^0.44.0",
+    "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "exceljs": "^4.4.0",
-    "express": "^5.1.0",
+    "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
     "helmet": "^8.0.0",
     "joi": "^17.11.0",
-    "jsonwebtoken": "^9.0.2",
+    "jsonwebtoken": "^9.1.2",
     "nodemailer": "^7.0.11",
     "pdfkit": "^0.17.2",
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.0.0",
     "jest": "^29.7.0",
     "nodemon": "^3.1.0",
-    "prisma": "^6.19.0",
-    "supertest": "^6.3.3"
+    "prisma": "^5.7.0",
+    "supertest": "^6.3.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "zod": "^3.22.4"
   }
 }

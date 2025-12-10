@@ -52,6 +52,19 @@ export default function Dashboard() {
     router.push('/login');
   };
 
+  const handleExport = async (type: 'excel' | 'pdf') => {
+    try {
+      if (type === 'excel') {
+        await feedbacksService.downloadExcel();
+      } else {
+        await feedbacksService.downloadPDF();
+      }
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+      setError('Erro ao baixar relatório. Tente novamente.');
+    }
+  };
+
   const getSentimentColor = (opinstars: number) => {
     if (opinstars >= 4) return 'bg-gradient-to-r from-emerald-500 to-green-600 text-white';
     if (opinstars === 3) return 'bg-gradient-to-r from-amber-500 to-orange-600 text-white';
@@ -237,8 +250,8 @@ export default function Dashboard() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-all ${activeTab === tab.id
-                    ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
               >
                 <span className="mr-2">{tab.icon}</span>
@@ -251,9 +264,25 @@ export default function Dashboard() {
         {/* Tab Content */}
         {activeTab === 'feedbacks' && (
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200/50 bg-gradient-to-r from-indigo-50 to-purple-50">
-              <h2 className="text-xl font-bold text-gray-900">Feedbacks Recentes</h2>
-              <p className="text-sm text-gray-600 mt-1">Últimos feedbacks recebidos</p>
+            <div className="px-6 py-4 border-b border-gray-200/50 bg-gradient-to-r from-indigo-50 to-purple-50 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Feedbacks Recentes</h2>
+                <p className="text-sm text-gray-600 mt-1">Últimos feedbacks recebidos</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleExport('excel')}
+                  className="px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <span className="text-lg">📊</span> Excel
+                </button>
+                <button
+                  onClick={() => handleExport('pdf')}
+                  className="px-3 py-2 text-sm font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <span className="text-lg">📄</span> PDF
+                </button>
+              </div>
             </div>
 
             {feedbacks.length === 0 ? (
@@ -343,8 +372,8 @@ export default function Dashboard() {
                     </div>
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm ${form.status === 'ACTIVE'
-                          ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white'
-                          : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white'
+                        ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white'
+                        : 'bg-gradient-to-r from-amber-500 to-orange-600 text-white'
                         }`}
                     >
                       {form.status === 'ACTIVE' ? '✓ Ativo' : form.status}

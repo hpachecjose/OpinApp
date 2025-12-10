@@ -97,7 +97,7 @@ export default function RegisterPage() {
               <img
                 src="/opinapp_logo_rb.png"
                 alt="OpinApp Logo"
-                className="h-8 sm:h-10 w-auto"
+                className="h-14 sm:h-20 w-auto"
               />
             </a>
             <a
