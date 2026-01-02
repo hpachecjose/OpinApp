@@ -1,4 +1,4 @@
-<img src="frontend/public/opinapp_logo_rb.png" alt="OpinApp Logo" width="300" height="100">
+<img src="frontend/public/opinapp_logo_rb.png" alt="OpinApp Logo" width="300" height="200">
 
 O **OpinApp** é uma plataforma SaaS brasileira para coleta e análise inteligente de feedbacks de clientes. O sistema centraliza comentários recebidos através de múltiplos canais e tem como objetivo utilizar Inteligência Artificial para processar, analisar e gerar insights automáticos.
 
