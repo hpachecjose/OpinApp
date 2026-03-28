@@ -1,5 +1,4 @@
-<div align="center">
-  <img src="frontend/public/opinapp_logo_rb.png" alt="OpinApp Logo" width="300">
+
   
   <br />
   
