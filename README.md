@@ -1,108 +1,139 @@
-<img src="frontend/public/opinapp_logo_rb.png" alt="OpinApp Logo" width="300" height="250">
+<div align="center">
+  <img src="frontend/public/opinapp_logo_rb.png" alt="OpinApp Logo" width="300">
+  
+  <br />
+  
+  # OpinApp 
 
-O **OpinApp** é uma plataforma SaaS brasileira para coleta e análise inteligente de feedbacks de clientes. O sistema centraliza comentários recebidos através de múltiplos canais e tem como objetivo utilizar Inteligência Artificial para processar, analisar e gerar insights automáticos.
+  **Plataforma de Coleta e Análise Inteligente de Feedbacks**
 
-## 🚀 Visão Geral
+  [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+  [![Node.js](https://img.shields.io/badge/Node.js-18+-green?style=for-the-badge&logo=node.js)](https://nodejs.org/)
+  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-blue?style=for-the-badge&logo=postgresql)](https://www.postgresql.org/)
+  [![Prisma](https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
+  [![Google Gemini](https://img.shields.io/badge/Google_Gemini-AI-orange?style=for-the-badge&logo=google)](https://deepmind.google/technologies/gemini/)
+</div>
 
-Empresas coletam feedbacks de forma desorganizada. O OpinApp resolve isso centralizando tudo em um único lugar, permitindo:
-1. **Coleta Centralizada:** De múltiplos canais (Links, QR Code).
-2. **Sistema OpinStars:** Avaliação híbrida (0-5 estrelas + texto).
-3. **Dashboard:** Métricas visuais e gerenciamento de formulários.
-4. **Análise de Sentimento:** Processada por IA (**Google Gemini**), gerando classificação, resumo e detecção de temas.
+<hr />
 
-## 🛠️ Tecnologias e Arquitetura
+O **OpinApp** é uma plataforma SaaS projetada para revolucionar a forma como empresas coletam, gerenciam e compreendem o feedback de seus clientes. Centralizando comentários de múltiplos canais, o sistema utiliza Inteligência Artificial avançada para processar dados, detectar sentimentos e gerar insights automáticos e acionáveis.
 
-O projeto opera no modelo **Full Stack** com uma arquitetura moderna e escalável.
+## 🚀 Principais Funcionalidades
 
-### Backend (API)
-- **Node.js**: Ambiente de execução.
-- **Express**: Framework web.
-- **Prisma ORM**: Gerenciamento de banco de dados e migrations.
-- **Banco de Dados**: PostgreSQL (Schemas de Users, Forms, Feedbacks, PasswordReset).
-- **Autenticação**: JWT (JSON Web Tokens) e Argon2 para hash de senhas.
-- **Segurança**: Helmet, Rate Limiting, CORS configurado.
+- 📊 **Dashboard Inteligente:** Métricas detalhadas, gráficos customizáveis e visualização clara do desempenho de satisfação.
+- 🤖 **Análise de Sentimento com IA:** Integração com **Google Gemini** para classificar feedbacks, gerar resumos e extrair temas principais automaticamente.
+- 📝 **Gestão de Formulários:** Crie formulários flexíveis para coleta via link ou QR Code.
+- ⭐ **Sistema OpinStars:** Avaliação híbrida que combina notas (0-5 estrelas) com comentários abertos.
+- 🔒 **Segurança e Moderação:** Autenticação JWT robusta e moderação automática de conteúdo ofensivo.
+- 📱 **Interface Responsiva:** Design moderno, limpo e adaptável a qualquer dispositivo.
 
-### Frontend
-- **Framework**: Next.js 14 (App Router).
-- **Estilização**: Tailwind CSS 4.
-- **Gerenciamento de Estado**: Zustand (Auth, Forms, Feedbacks).
-- **UI**: Responsiva e dinâmica, preparada para PWA.
+## 🛠️ Stack Tecnológico
 
-## 📂 Estrutura do Projeto
+O OpinApp foi construído com foco em performance, escalabilidade e produtividade de desenvolvimento:
 
-```
+**Frontend**
+- **Framework:** [Next.js 14](https://nextjs.org/) (App Router)
+- **Estilização:** [Tailwind CSS 4](https://tailwindcss.com/)
+- **Gerenciamento de Estado:** [Zustand](https://zustand-demo.pmnd.rs/)
+- **Requisições:** Axios
+
+**Backend**
+- **Ambiente:** [Node.js](https://nodejs.org/)
+- **Framework:** [Express.js](https://expressjs.com/)
+- **Banco de Dados:** [PostgreSQL](https://www.postgresql.org/)
+- **ORM:** [Prisma](https://www.prisma.io/)
+- **Segurança:** JWT, Argon2 (Hash), Helmet, CORS, Rate Limiting
+
+## 📂 Estrutura do Repositório
+
+```bash
 opinapp/
-├── frontend/             # Aplicação Next.js
-│   ├── src/app/          # Páginas e Rotas (Dashboard, Login, Forms)
-│   ├── src/services/     # Integração com API (Axios)
-│   └── src/store/        # Gerenciamento de Estado Global
+├── frontend/             # Aplicação Next.js (Dashboard, Páginas Públicas, UI)
+│   ├── public/           # Assets estáticos
+│   ├── src/app/          # Rotas e Páginas (App Router)
+│   ├── src/components/   # Componentes reutilizáveis React
+│   ├── src/services/     # Configuração do Axios e chamadas à API
+│   └── src/store/        # Stores do Zustand (Auth, Feedbacks, etc.)
 │
-├── backend/              # API Node.js/Express
-│   ├── src/controllers/  # (Lógica consolidada em rotas no MVP)
-│   ├── src/middlewares/  # Auth, RateLimit
-│   ├── src/routes/       # Definição de endpoints
-│   └── prisma/           # Schema do Banco de Dados
+├── backend/              # API Express
+│   ├── prisma/           # Schema do banco e migrations
+│   ├── src/controllers/  # Lógica de controle de requisições
+│   ├── src/middlewares/  # Middlewares (Auth, Validação, etc.)
+│   ├── src/routes/       # Definição de rotas da API
+│   └── src/services/     # Lógica de negócio e integrações (IA)
 ```
 
-## ⚡ Como Rodar o Projeto
+## ⚙️ Configuração do Ambiente
 
-### Pré-requisitos
-- Node.js 18+
-- Banco de dados PostgreSQL (ou SQLite para testes rápidos, configurável no `.env`)
+### 1. Pré-requisitos
+Certifique-se de ter instalado em sua máquina:
+- [Node.js](https://nodejs.org/) (Versão 18 ou superior)
+- [PostgreSQL](https://www.postgresql.org/) (ou um cluster online como Supabase/Neon)
+- Git
 
-### Instalação
+### 2. Clonando o Projeto
+```bash
+git clone https://github.com/hpachecjose/opinapp.git
+cd opinapp
+```
 
-1. Clone o repositório:
-   ```bash
-   git clone https://github.com/hpachecjose/opinapp.git
-   cd opinapp
-   ```
+### 3. Variáveis de Ambiente
+Você precisará configurar os arquivos `.env`.
 
-2. Instale as dependências (Raiz, Frontend e Backend):
-   ```bash
-   npm install      # Instala dependências da raiz (concurrently)
-   npm run install:all # Script customizado para instalar tudo
-   ```
-   *Caso o script `install:all` não esteja disponível, execute `npm install` em cada pasta manualmente.*
+**No Backend (`backend/.env`):**
+Crie um arquivo `.env` na pasta `backend/` seguindo o modelo abaixo:
+```env
+PORT=4000
+DATABASE_URL="postgresql://usuario:senha@localhost:5432/opinapp"
+JWT_SECRET="sua_chave_secreta_super_segura"
+FRONTEND_URL="http://localhost:3000"
+GEMINI_API_KEY="sua_chave_api_do_google_gemini"
+```
 
-3. Configure as variáveis de ambiente:
-   - Crie um arquivo `.env` na pasta `backend/` com a `DATABASE_URL`, `JWT_SECRET` e `GEMINI_API_KEY`.
-   - Crie um arquivo `.env.local` na pasta `frontend/` se necessário (ex: `NEXT_PUBLIC_API_URL`).
+**No Frontend (`frontend/.env.local`):**
+Crie um arquivo `.env.local` na pasta `frontend/`:
+```env
+NEXT_PUBLIC_API_URL="http://localhost:4000/api"
+```
 
-4. Configure o Banco de Dados (Prisma):
-   ```bash
-   cd backend
-   npx prisma generate
-   npx prisma db push # Cria as tabelas sem migrations (dev)
-   ```
+### 4. Instalação e Banco de Dados
 
-### Executando (Desenvolvimento)
+Instale as dependências de ambos os projetos:
+```bash
+# Na raiz do projeto
+npm install
+npm run install:all
+```
 
-Na raiz do projeto, execute:
+Configure o banco de dados via Prisma:
+```bash
+cd backend
+npx prisma generate
+npx prisma db push
+cd ..
+```
+
+### 5. Executando a Aplicação
+O projeto utiliza bibliotecas para rodar frontend e backend com um único comando na raiz:
 
 ```bash
 npm run dev
 ```
+- A API estará disponível em: `http://localhost:4000`
+- O Dashboard estará disponível em: `http://localhost:3000`
 
-Este comando utilizará o `concurrently` para subir simultaneamente:
-- **Frontend:** http://localhost:3000
-- **Backend:** http://localhost:4000 (ou porta definida no .env)
+## ✅ Roadmap de Desenvolvimento
 
-## ✅ Estado Atual do Desenvolvimento (MVP)
-
-O projeto encontra-se funcional com as seguintes features implementadas:
-
-- [x] Landing Page, Páginas Institucionais e Legais.
-- [x] Sistema de Autenticação Completo (Login, Registro, Recuperação de Senha).
-- [x] Dashboard Interativo (Gráficos de distribuição, Lista de Feedbacks).
-- [x] Criação e Gestão de Formulários.
-- [x] Coleta de Feedbacks (Links Públicos).
-- [x] Análise de Sentimento com IA (Google Gemini).
-- [x] Moderação automática de conteúdo.
-
-**Próximos Passos (Roadmap):**
-- [ ] Exportação de relatórios (PDF/Excel).
-- [ ] Refinamento da Moderação de Conteúdo.
+- [x] Landing Page e Auth completa (Login/Registro/Recuperação)
+- [x] Dashboard interativo com gráficos de distribuição
+- [x] Criação de formulários e links de coleta
+- [x] Análise de Sentimento com IA (Google Gemini)
+- [x] Funcionalidades Produtivas (Product Intelligence)
+- [ ] Exportação de relatórios (PDF/Excel)
+- [ ] Múltiplos fluxos de aprovação de feedback
 
 ## 📄 Licença
-Proprietário: OpinApp Team. Todos os direitos reservados.
+
+Este projeto é proprietário.
+**OpinApp Team**. Todos os direitos reservados.
+# OpinApp
